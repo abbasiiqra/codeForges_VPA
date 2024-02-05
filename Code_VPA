@@ -1,0 +1,161 @@
+from tkinter import*
+import pyttsx3 as p
+import speech_recognition as sr
+import pipwin
+
+import datetime as dt
+import os.path
+
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
+
+
+from selenium import webdriver
+
+def ask():
+    class infow():
+        def __init__(self):
+            self.driver= webdriver.Chrome()
+
+        def get_info(self, query):
+            self.query= query
+            self.driver.get(url="https://www.google.com")
+            search=self.driver.find_element("xpath",'//*[@id="APjFqb"]')
+            search.click()
+            search.send_keys(query)
+            enter=self.driver.find_element("xpath",'/html/body/div[1]/div[3]/form/div[1]/div[1]/div[2]/div[4]/div[6]/center/input[1]')
+            enter.click()
+
+
+
+    engine = p.init()
+    rate= engine.getProperty('rate')
+    voices= engine.getProperty('voices')
+    engine.setProperty('rate',150)
+
+    engine.setProperty('voice', voices[1].id)
+    def speak(text):
+        engine.say(text)
+        engine.runAndWait()
+
+    speak("hello, I am Avara")
+
+    r= sr.Recognizer()
+    with sr.Microphone() as source:
+        r.energy_threshold=10000
+        r.adjust_for_ambient_noise(source,1.2)
+        print("listening..")
+        audio= r.listen(source)
+        text =  r.recognize_google(audio)
+        print(text)
+
+    if "hello" or "avara" in text:
+        speak("What can I do for you ? ")
+
+
+    with sr.Microphone() as source:
+        r.energy_threshold=10000
+        r.adjust_for_ambient_noise(source,1.2)
+        print("listening...")
+        audio= r.listen(source)
+        text2= r.recognize_google(audio)
+        print(text2)
+
+    if  "search" in text2:
+        speak("What do you want to search?")
+
+        with sr.Microphone() as source:
+            r.energy_threshold=10000
+            r.adjust_for_ambient_noise(source,1.2)
+            print("listening...")
+            audio= r.listen(source)
+            text3= r.recognize_google(audio)
+
+        speak("searching")
+
+        assist= infow()
+        assist.get_info(text3)
+
+        speak("what else can i do for you")
+        with sr.Microphone() as source:
+            r.energy_threshold=10000
+            r.adjust_for_ambient_noise(source,1.2)
+            print("listening...")
+            audio= r.listen(source)
+            text2= r.recognize_google(audio)
+
+
+
+    if "event"  in text2:
+        speak("Please Enter the details for the event")
+
+        SCOPES = ["https://www.googleapis.com/auth/calendar"]
+        creds = None
+        if os.path.exists("token.json"):
+            creds = Credentials.from_authorized_user_file("token.json", SCOPES)
+        if not creds or not creds.valid:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file("credentials.json", SCOPES )
+                creds = flow.run_local_server(port=0)
+
+            with open("token.json", "w") as token:
+                token.write(creds.to_json())
+
+        try:
+            service = build("calendar", "v3", credentials=creds)
+            summ=input("Enter the title of event")
+            loc=input("Enter the location")
+            details=input("Enter details")
+            startdt=input("Enter start date time in the given format:  2024-02-05T09:00:00.000Z")
+            enddt=input("Enter end date time in the given format : 2024-02-05T09:00:00.000Z")
+
+            event= {
+                "summary":summ,
+                "location": loc,
+                "description": details,
+                "colorId": 6,
+                "start":{
+                   "dateTime": startdt,
+                   "timeZone": "GMT-05.30"
+                },
+                "end":{
+                   "dateTime": enddt,
+                   "timeZone": "GMT-05.30"
+                }
+
+            }
+
+            event= service.events().insert(calendarId= "primary", body=event).execute()
+
+            print(f"Event created{event.get('htmlLink')}")
+
+        except HttpError as error:
+            print(f"An error occurred: {error}")
+
+        speak("Event is scheduled, please check by the given link")
+
+    else:
+        speak("not understandable")
+
+
+
+root = Tk()
+root.title("AI Assistant")
+root.geometry("550x675")
+root.resizable(False,False)
+root.config(bg="#6F5FAF")
+
+frame= Frame(root,padx=100,pady=7,borderwidth=3,relief="raised")
+frame.grid(row=0, column=1,padx=55,pady=10)
+
+text_label= Label(frame, text="AI ASSISTANT" , font=("comic Sans ms", 14, "bold"))
+text_label.grid(row=0,column =0, padx=20,pady=10)
+
+Button1= Button(root, text="ASK" , bg="#356696", pady=16 , padx= 40, borderwidth=3, relief= SOLID, command= ask)
+Button1.place(x=225, y=575)
+root.mainloop()
